@@ -4,10 +4,13 @@ from dotenv import load_dotenv
 
 from app.models import ChatbotRequest
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+
 from starlette.responses import Response
 from starlette.middleware.cors import CORSMiddleware
 
 from gradio_client import Client
+from app.utils import *
 import ast
 import time
 
@@ -40,6 +43,11 @@ app.add_middleware(
 # Configurate the H2OGPT python client connection
 client = Client(H2OGPT_URL+H2OGPT_PORT)
 
+async def fake_data_streamer():
+    for i in range(10):
+        yield b'some fake data\n\n'
+        await asyncio.sleep(0.5)
+
 @app.get("/")
 def root():
     return {"message": "Fast API in Python"}
@@ -58,6 +66,31 @@ def nochat_api(request: ChatbotRequest):
         raise HTTPException(status_code=400, detail="Error")
 
     return response
+
+@app.post("/query_chatbot_plain", status_code=200)
+def nochat_api(request: ChatbotRequest):
+    api_name = "/submit_nochat_plain_api"
+    kwargs = request.__dict__
+
+    res = client.predict(str(dict(kwargs)), api_name=api_name)
+
+    response = ast.literal_eval(res)['response']
+
+    if not response:
+        raise HTTPException(status_code=400, detail="Error")
+
+    return response
+
+#We cannot stream on "/submit_nochat_plain_api" endpoint
+@app.post("/query_chatbot_stream", status_code=200)
+def nochat_api(request: ChatbotRequest):
+    api_name = "/submit_nochat_api"
+    kwargs = request.__dict__
+    job = client.submit(str(dict(kwargs)), api_name=api_name)  
+    return StreamingResponse(stream_output(job), media_type='text/event-stream')
+
+    
+
     
 """
 @app.get("/alternatives/{question_id}")
