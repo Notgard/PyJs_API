@@ -81,13 +81,19 @@ def nochat_api(request: ChatbotRequest):
 
     return response
 
-#We cannot stream on "/submit_nochat_plain_api" endpoint
+#We cannot stream on "/submit_nochat_plain_api" endpoint and plain means : do a resume 
 @app.post("/query_chatbot_stream", status_code=200)
 def nochat_api(request: ChatbotRequest):
     api_name = "/submit_nochat_api"
     kwargs = request.__dict__
     job = client.submit(str(dict(kwargs)), api_name=api_name)  
     return StreamingResponse(stream_output(job), media_type='text/event-stream')
+
+@app.get("/model_names",status_code=200)
+def chat_names():
+    api_name="/model_names"
+    res=client.predict(api_name=api_name)
+    print(res)
 
     
 
