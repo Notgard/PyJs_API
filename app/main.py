@@ -14,6 +14,8 @@ from app.utils import *
 import ast
 import time
 
+DEBUG = False
+
 load_dotenv()
 
 API_URL = os.getenv("API_URL", "http://localhost")
@@ -92,9 +94,35 @@ def nochat_api(request: ChatbotRequest):
     job = client.submit(str(dict(kwargs)), api_name=api_name)  
     return StreamingResponse(stream_output(job), media_type='text/event-stream')
 
-    
+#get model_names available
+@app.get("/model_names",status_code=200)
+def chat_names():
+    api_name="/model_names"
+    res=ast.literal_eval(client.predict(api_name=api_name))
+    models_dict = dict()
+    for index, model in enumerate(res):
+        models_dict["model_"+str(index)] = model['base_model']
+        print(model['base_model'])
 
+    return str(dict(models_dict))
+
+@app.post("/query_specific_model")
+def query_specific_model(request: ChatbotRequest):
+    request_json = request.__dict__
+    if not request_json["visible_models"]:
+        raise HTTPException(status_code=404, detail="Missing model to query")
+
+    api_name = "/submit_nochat_api"
+
+    res = client.predict(str(dict(request_json)), api_name=api_name)
+
+    if DEBUG:
+        print("Raw client result: %s" % res, flush=True)
     
+    res_dict = dict(prompt=request_json['instruction_nochat'], iinput=request_json['iinput_nochat'],
+                    response=res)
+
+    return res_dict
 """
 @app.get("/alternatives/{question_id}")
 def read_alternatives(question_id: int):

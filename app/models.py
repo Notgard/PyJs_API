@@ -17,3 +17,4 @@ class ChatbotRequest(BaseModel):
     num_prompt_tokens:  int   | None = None
     early_stopping:     bool  | None = None
     stream_output:      bool  | None = None
+    visible_models:     str   | None = None
