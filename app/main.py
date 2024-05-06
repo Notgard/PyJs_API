@@ -138,7 +138,7 @@ def query_specific_model(request: ChatbotRequest):
 @app.post("/query_ollama", status_code=200)
 def ollama_api():
 
-    response = ollama_client.chat(model='phi',messages={ 'role': 'user', 'content': 'Write a vector addition program in CUDA ' })
+    response = ollama_client.chat(model='phi',messages=[{ 'role': 'user', 'content': 'Write a vector addition program in CUDA ' }])
 
     print(response)
 
