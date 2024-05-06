@@ -50,7 +50,7 @@ app.add_middleware(
 )
 
 # Configurate the H2OGPT python client connection
-client = Client(H2OGPT_URL+H2OGPT_PORT)
+#client = Client(H2OGPT_URL+H2OGPT_PORT)
 
 # Configurate the Ollama python client connection
 ollama_client = OllamaClient(host=OLLAMA_HOST_URL+OLLAMA_HOST_PORT)
