@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from app.models import ChatbotRequest
+from app.models import ChatbotRequestOllama
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
@@ -13,6 +14,7 @@ from gradio_client import Client
 from app.utils import *
 import ast
 import time
+from ollama import Client as OllamaClient
 
 DEBUG = False
 
@@ -24,6 +26,9 @@ API_PORT = os.getenv("API_PORT", ":8000")
 H2OGPT_URL = os.getenv("GRADIO_HOST_URL", "http://localhost")
 H2OGPT_PORT = os.getenv("GRADIO_HOST_PORT", ":7860")
 
+OLLAMA_HOST_URL=os.getenv("OLLAMA_HOST_URL","http://localhost")
+OLLAMA_HOST_PORT=os.getenv("OLLAMA_HOST_PORT",":11434")
+
 app = FastAPI()
 
 origins = [
@@ -31,6 +36,8 @@ origins = [
     API_URL+API_PORT,
     H2OGPT_URL,
     H2OGPT_URL+H2OGPT_PORT,
+    OLLAMA_HOST_URL,
+    OLLAMA_HOST_URL+OLLAMA_HOST_PORT,
     "*"
 ]
 
@@ -44,6 +51,9 @@ app.add_middleware(
 
 # Configurate the H2OGPT python client connection
 client = Client(H2OGPT_URL+H2OGPT_PORT)
+
+# Configurate the Ollama python client connection
+ollama_client = OllamaClient(host=OLLAMA_HOST_URL+OLLAMA_HOST_PORT)
 
 async def fake_data_streamer():
     for i in range(10):
@@ -123,6 +133,19 @@ def query_specific_model(request: ChatbotRequest):
                     response=res)
 
     return res_dict
+
+# Query Ollama API using the Ollama python client
+@app.post("/query_ollama", status_code=200)
+def ollama_api():
+
+    response = ollama_client.chat(model='phi',messages={ 'role': 'user', 'content': 'Write a vector addition program in CUDA ' })
+
+    print(response)
+
+    if not response:
+        raise HTTPException(status_code=400, detail="Error")
+
+    return response
 """
 @app.get("/alternatives/{question_id}")
 def read_alternatives(question_id: int):

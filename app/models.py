@@ -18,3 +18,17 @@ class ChatbotRequest(BaseModel):
     early_stopping:     bool  | None = None
     stream_output:      bool  | None = None
     visible_models:     str   | None = None
+
+class ChatbotRequestOllama(BaseModel):
+    model:              str   | None = None
+    prompt:             str   | None = None
+    messages:           list  | None = None
+    images:             list  | None = None
+    format:             str   | None = None
+    options:            list  | None = None
+    system:             str   | None = None
+    template:           str   | None = None
+    context:            str   | None = None
+    stream:             bool  | None = None
+    raw:                bool  | None = None
+    keep_alive:         int   | None = None
