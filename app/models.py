@@ -32,3 +32,6 @@ class ChatbotRequestOllama(BaseModel):
     stream:             bool  | None = None
     raw:                bool  | None = None
     keep_alive:         int   | None = None
+    url_hf:             str   | None = None
+    name_hf:            str   | None = None
+    raw:                bool   =False
