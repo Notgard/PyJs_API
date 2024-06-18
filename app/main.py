@@ -75,20 +75,11 @@ ollama_client = OllamaClient(host=OLLAMA_HOST_URL+OLLAMA_HOST_PORT)
 #ollama_client = OllamaClient(host=OLLAMA_HOST_URL)
 ollama_async_client = OllamaAsyncClient(host=OLLAMA_HOST_URL+OLLAMA_HOST_PORT)
 
-async def fake_data_streamer():
-    for i in range(10):
-        yield b'some fake data\n\n'
-        await asyncio.sleep(0.5)
-
 @app.get("/")
 def root():
     return {"message": "Fast API in Python"}
 
-@app.get("/test_streaming")
-def test_streaming():
-    return StreamingResponse(fake_data_streamer(), media_type='text/event-stream')
-
-@app.post("/query_chatbot", status_code=200)
+@app.post("/h2o_query", status_code=200)
 def nochat_api(request: ChatbotRequest):
     api_name = "/submit_nochat_api"
     kwargs = request.__dict__
@@ -102,7 +93,7 @@ def nochat_api(request: ChatbotRequest):
 
     return response
 
-@app.post("/query_chatbot_plain", status_code=200)
+@app.post("/h2o_query_plain", status_code=200)
 def nochat_api(request: ChatbotRequest):
     api_name = "/submit_nochat_plain_api"
     kwargs = request.__dict__
@@ -116,16 +107,16 @@ def nochat_api(request: ChatbotRequest):
 
     return response
 
-#We cannot stream on "/submit_nochat_plain_api" endpoint
-@app.post("/query_chatbot_stream", status_code=200)
+#We cannot stream on "/submit_nochat_plain_api" endpoint from h2OGPT
+@app.post("/h2o_query_stream", status_code=200)
 def nochat_api(request: ChatbotRequest):
     api_name = "/submit_nochat_api"
     kwargs = request.__dict__
     job = client.submit(str(dict(kwargs)), api_name=api_name)  
-    return StreamingResponse(stream_output(job), media_type='text/event-stream')
+    return StreamingResponse(h2o_stream_output(job), media_type='text/event-stream')
 
-#get model_names available
-@app.get("/model_names",status_code=200)
+#get model_names available from h2OGPT
+@app.get("/h2o_models",status_code=200)
 def chat_names():
     api_name="/model_names"
     res=ast.literal_eval(client.predict(api_name=api_name))
@@ -136,7 +127,7 @@ def chat_names():
 
     return str(dict(models_dict))
 
-@app.post("/query_specific_model")
+@app.post("/h2o_query_specific_model", status_code=200, response_model=ChatbotRequest)
 def query_specific_model(request: ChatbotRequest):
     request_json = request.__dict__
     if not request_json["visible_models"]:
@@ -154,36 +145,98 @@ def query_specific_model(request: ChatbotRequest):
 
     return res_dict
 
-# Query Ollama API using the Ollama python client
-@app.post("/query_ollama", status_code=200)
+# Query Ollama API using the Ollama python client without stream
+@app.post("/ollama_query", status_code=200)
 def ollama_api(request: ChatbotRequestOllama):
+    """
+    Endpoint for making a query to the Ollama chatbot model.
 
-    response = ollama_client.chat(model=request.model, messages=request.messages)
+    Args:
+        request (ChatbotRequestOllama): The request object containing the model and messages.
 
-    print(response)
+    Returns:
+        dict: The response from the Ollama chatbot model.
+
+    Raises:
+        HTTPException: If there is an error in the response.
+    """
+    response = ollama_client.generate(model=request.model, messages=request.messages)
 
     if not response:
         raise HTTPException(status_code=400, detail="Error")
-    
-    current_directory = os.getcwd()
-    print(current_directory)
 
     return response
 
 # Query Ollama API using the Ollama python client with stream
-@app.post("/query_ollama_stream", status_code=200)
+@app.post("/ollama_query_stream", status_code=200)
 async def ollama_stream(request: ChatbotRequestOllama):
+    """
+    Endpoint for streaming Ollama chatbot responses.
+
+    Args:
+        request (ChatbotRequestOllama): The request object containing the chatbot model and messages.
+
+    Returns:
+        StreamingResponse: A streaming response with the chatbot's responses in text/event-stream format.
+    """
+    async def stream_parts():
+        async for part in await ollama_async_client.generate(model=request.model, messages=request.messages, stream=True):
+            print(part)
+            yield part['message']['content']
+
+    return StreamingResponse(stream_parts(), media_type='text/event-stream')
+
+# Chat with Ollama API using the Ollama python client without stream
+@app.post("/ollama_chat", status_code=200)
+def ollama_api(request: ChatbotRequestOllama):
+    """
+    Endpoint for making a Chat to the Ollama chatbot model.
+
+    Args:
+        request (ChatbotRequestOllama): The request object containing the model and messages.
+
+    Returns:
+        dict: The response from the Ollama chatbot model.
+
+    Raises:
+        HTTPException: If there is an error in the response.
+    """
+    response = ollama_client.chat(model=request.model, messages=request.messages)
+
+    if not response:
+        raise HTTPException(status_code=400, detail="Error")
+
+    return response
+
+# Chat with Ollama API using the Ollama python client with stream
+@app.post("/ollama_chat_stream", status_code=200)
+async def ollama_stream(request: ChatbotRequestOllama):
+    """
+    Endpoint for streaming Ollama chatbot responses.
+
+    Args:
+        request (ChatbotRequestOllama): The request object containing the chatbot model and messages.
+
+    Returns:
+        StreamingResponse: A streaming response with the chatbot's responses in text/event-stream format.
+    """
     async def stream_parts():
         async for part in await ollama_async_client.chat(model=request.model, messages=request.messages, stream=True):
             yield part['message']['content']
 
     return StreamingResponse(stream_parts(), media_type='text/event-stream')
 
-    
-    
-
 @app.post("/ollama_rag", status_code=200)
 def ollama_rag(request: ChatbotRequestOllama):
+    """
+    Endpoint for the Ollama RAG chatbot.
+
+    Args:
+        request (ChatbotRequestOllama): The request object containing the chatbot parameters.
+
+    Returns:
+        dict: The response from the chatbot.
+    """
     ollama_embedding = OllamaEmbeddings(model="all-minilm",base_url=OLLAMA_HOST_URL)
     db = Chroma(persist_directory="./chroma_db", embedding_function=ollama_embedding, collection_name="test")
 
@@ -210,6 +263,18 @@ def ollama_rag(request: ChatbotRequestOllama):
 #import a model from Huggingface
 @app.post("/ollama_import_HF", status_code=200)
 def ollama_import_HF(request:ChatbotRequestOllama):
+    """
+    Imports a model from a given URL and creates a model using Ollama.
+
+    Args:
+        request (ChatbotRequestOllama): The request object containing the URL and model name.
+
+    Returns:
+        str: The result of creating the model.
+
+    Raises:
+        HTTPException: If there is an error downloading the model.
+    """
     download=wget.download(request.url_hf, out='./models/')
     if not download:
         raise HTTPException(status_code=400, detail="Error downloading the model")
@@ -233,28 +298,15 @@ def ollama_import_HF(request:ChatbotRequestOllama):
 
 @app.post("/ollama_preload_model", status_code=200)
 def ollama_preload_model(request:ChatbotRequestOllama):
+    """
+    Preloads a model and performs a chat using the Ollama client.
+
+    Args:
+        request (ChatbotRequestOllama): The request object containing the model.
+
+    Returns:
+        str: The result of the chat operation.
+    """
     result=ollama_client.chat(model=request.model)
     print(result)
     return result
-
-
-
-
-
-"""
-@app.get("/alternatives/{question_id}")
-def read_alternatives(question_id: int):
-    return api.read_alternatives(question_id)
-
-
-@app.post("/answer", status_code=201)
-def create_answer(payload: UserAnswer):
-    payload = payload.dict()
-
-    return api.create_answer(payload)
-
-
-@app.get("/result/{user_id}")
-def read_result(user_id: int):
-    return api.read_result(user_id)
-"""

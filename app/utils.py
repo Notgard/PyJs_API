@@ -1,7 +1,7 @@
 import asyncio
 import ast
 
-async def stream_output(job):
+async def h2o_stream_output(job):
     text_old = ''
     while not job.done():
         outputs_list = job.communicator.job.outputs
