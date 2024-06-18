@@ -160,7 +160,7 @@ def ollama_api(request: ChatbotRequestOllama):
     Raises:
         HTTPException: If there is an error in the response.
     """
-    response = ollama_client.generate(model=request.model, messages=request.messages)
+    response = ollama_client.generate(model=request.model, prompt=request.prompt)
 
     if not response:
         raise HTTPException(status_code=400, detail="Error")
@@ -180,9 +180,8 @@ async def ollama_stream(request: ChatbotRequestOllama):
         StreamingResponse: A streaming response with the chatbot's responses in text/event-stream format.
     """
     async def stream_parts():
-        async for part in await ollama_async_client.generate(model=request.model, messages=request.messages, stream=True):
-            print(part)
-            yield part['message']['content']
+        async for part in await ollama_async_client.generate(model=request.model, prompt=request.prompt, stream=True):
+            yield part['response']
 
     return StreamingResponse(stream_parts(), media_type='text/event-stream')
 
@@ -285,8 +284,12 @@ def ollama_import_HF(request:ChatbotRequestOllama):
     modelfile=f'''
     FROM ~/PyJs_API/models/{name_model}
     '''
+    
     #create a model from the modelfile
-    result=ollama_client.create(model=request.name_hf, modelfile=modelfile)
+    custom_model_name = name_model
+    if request.name_hf is not None:
+        custom_model_name = request.name_hf
+    result=ollama_client.create(model=custom_model_name, modelfile=modelfile)
 
     file_to_remove=f'./models/{name_model}'
     if os.path.isfile(file_to_remove):
@@ -308,5 +311,17 @@ def ollama_preload_model(request:ChatbotRequestOllama):
         str: The result of the chat operation.
     """
     result=ollama_client.chat(model=request.model)
+    print(result)
+    return result
+
+@app.get("/ollama_models", status_code=200)
+def ollama_models():
+    """
+    Returns the list of models from the Ollama client.
+
+    Returns:
+        str: The result of the model retrival operation.
+    """
+    result = ollama_client.list()
     print(result)
     return result

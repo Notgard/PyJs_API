@@ -25,7 +25,7 @@ class ChatbotRequestOllama(BaseModel):
     messages:           list  | None = None
     images:             list  | None = None
     format:             str   | None = None
-    options:            list  | None = None
+    options:            list  | dict | None = None
     system:             str   | None = None
     template:           str   | None = None
     context:            str   | None = None
@@ -34,4 +34,3 @@ class ChatbotRequestOllama(BaseModel):
     keep_alive:         int   | None = None
     url_hf:             str   | None = None
     name_hf:            str   | None = None
-    raw:                bool   =False
