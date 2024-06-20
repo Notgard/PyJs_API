@@ -4,8 +4,11 @@ from app.models import ChatbotRequest
 from app.models import ChatbotRequestOllama
 from app.utils import *
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException,Header
 from fastapi.responses import StreamingResponse
+from fastapi.security.api_key import APIKey
+from fastapi import Depends
+
 
 from starlette.responses import Response
 from starlette.middleware.cors import CORSMiddleware
@@ -30,6 +33,12 @@ import time
 import asyncio 
 import os
 import wget
+import secrets
+import hashlib
+from app.auth import *
+from database.admin import verify_admin
+
+
 
 
 DEBUG = False
@@ -147,7 +156,7 @@ def query_specific_model(request: ChatbotRequest):
 
 # Query Ollama API using the Ollama python client without stream
 @app.post("/ollama_query", status_code=200)
-def ollama_api(request: ChatbotRequestOllama):
+def ollama_api(request: ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):
     """
     Endpoint for making a query to the Ollama chatbot model.
 
@@ -169,7 +178,7 @@ def ollama_api(request: ChatbotRequestOllama):
 
 # Query Ollama API using the Ollama python client with stream
 @app.post("/ollama_query_stream", status_code=200)
-async def ollama_stream(request: ChatbotRequestOllama):
+async def ollama_stream(request: ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):
     """
     Endpoint for streaming Ollama chatbot responses.
 
@@ -187,7 +196,7 @@ async def ollama_stream(request: ChatbotRequestOllama):
 
 # Chat with Ollama API using the Ollama python client without stream
 @app.post("/ollama_chat", status_code=200)
-def ollama_api(request: ChatbotRequestOllama):
+def ollama_api(request: ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):
     """
     Endpoint for making a Chat to the Ollama chatbot model.
 
@@ -209,7 +218,7 @@ def ollama_api(request: ChatbotRequestOllama):
 
 # Chat with Ollama API using the Ollama python client with stream
 @app.post("/ollama_chat_stream", status_code=200)
-async def ollama_stream(request: ChatbotRequestOllama):
+async def ollama_stream(request: ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):
     """
     Endpoint for streaming Ollama chatbot responses.
 
@@ -226,7 +235,7 @@ async def ollama_stream(request: ChatbotRequestOllama):
     return StreamingResponse(stream_parts(), media_type='text/event-stream')
 
 @app.post("/ollama_rag", status_code=200)
-def ollama_rag(request: ChatbotRequestOllama):
+def ollama_rag(request: ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):
     """
     Endpoint for the Ollama RAG chatbot.
 
@@ -261,7 +270,7 @@ def ollama_rag(request: ChatbotRequestOllama):
 
 #import a model from Huggingface
 @app.post("/ollama_import_HF", status_code=200)
-def ollama_import_HF(request:ChatbotRequestOllama):
+def ollama_import_HF(request:ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):
     """
     Imports a model from a given URL and creates a model using Ollama.
 
@@ -300,7 +309,7 @@ def ollama_import_HF(request:ChatbotRequestOllama):
 
 
 @app.post("/ollama_preload_model", status_code=200)
-def ollama_preload_model(request:ChatbotRequestOllama):
+def ollama_preload_model(request:ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):
     """
     Preloads a model and performs a chat using the Ollama client.
 
@@ -315,7 +324,7 @@ def ollama_preload_model(request:ChatbotRequestOllama):
     return result
 
 @app.get("/ollama_models", status_code=200)
-def ollama_models():
+def ollama_models(api_key: APIKey = Depends(get_api_key)):
     """
     Returns the list of models from the Ollama client.
 
@@ -325,3 +334,18 @@ def ollama_models():
     result = ollama_client.list()
     print(result)
     return result
+
+
+@app.post("/api_key_generation", status_code=200)
+async def generate_api_key(admin_pw:str = Header(None),length=32, dash_every=8):
+    if verify_admin(admin_pw):
+        raw_key = secrets.token_hex(length)
+        # Insert dashes at specified intervals
+        api_key = '-'.join(raw_key[i:i+dash_every] for i in range(0, len(raw_key), dash_every))
+        hash_object = hashlib.sha512(api_key.encode())
+        hex_dig_key = hash_object.hexdigest()
+        #print(hex_dig_key)
+        add_user(hex_dig_key)
+        return api_key
+    else:
+        raise HTTPException(status_code=403, detail="Could not validate")
