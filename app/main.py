@@ -230,9 +230,9 @@ async def ollama_stream(request: ChatbotRequestOllama,api_key: APIKey = Depends(
     """
     async def stream_parts():
         async for part in await ollama_async_client.chat(model=request.model, messages=request.messages, stream=True):
-            yield part['message']['content']
+            yield f"{{'message': {part['message']}}}\n"
 
-    return StreamingResponse(stream_parts(), media_type='text/event-stream')
+    return StreamingResponse(stream_parts(), media_type='application/x-ndjson')
 
 @app.post("/ollama_rag", status_code=200)
 def ollama_rag(request: ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):

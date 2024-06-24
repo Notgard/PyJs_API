@@ -66,9 +66,9 @@ def display_admins():
 
 def main():
   #delete_table_admin()
-  add_admin('admine')
+  add_admin('retard')
   display_admins()
-  print(verify_admin(2,'admine'))
+  print(verify_admin(2,'retard'))
 #create a main
 
 if __name__ == '__main__':
