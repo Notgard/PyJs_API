@@ -12,11 +12,12 @@ def add_admin(password):
     conn.commit()
     conn.close()
 
-def delete_admin(password):
+def delete_admin(admin_id,password):
     dir = os.path.dirname(__file__)
     conn = sqlite3.connect(dir+'/database_user.db')
     cursor = conn.cursor()
-    cursor.execute(f"DELETE FROM admins WHERE password = {password}")
+    #cursor.execute(f"DELETE FROM admins WHERE password = {password}")
+    cursor.execute(f"DELETE FROM admins WHERE id = '{admin_id}' AND password = '{password}'")
     conn.commit()
     conn.close()
 
@@ -64,9 +65,10 @@ def display_admins():
         print(f"User ID: {admin_id }, password : {password}")
 
 def main():
-    delete_table_admin()
-    display_admins()
-
+  #delete_table_admin()
+  add_admin('admine')
+  display_admins()
+  print(verify_admin(2,'admine'))
 #create a main
 
 if __name__ == '__main__':

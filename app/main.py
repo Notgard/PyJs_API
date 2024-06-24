@@ -337,8 +337,8 @@ def ollama_models(api_key: APIKey = Depends(get_api_key)):
 
 
 @app.post("/api_key_generation", status_code=200)
-async def generate_api_key(admin_pw:str = Header(None),length=32, dash_every=8):
-    if verify_admin(admin_pw):
+async def generate_api_key(admin_pw:str = Header(None),admin_id:str = Header(None),length=32, dash_every=8):
+    if verify_admin(admin_id,admin_pw):
         raw_key = secrets.token_hex(length)
         # Insert dashes at specified intervals
         api_key = '-'.join(raw_key[i:i+dash_every] for i in range(0, len(raw_key), dash_every))
