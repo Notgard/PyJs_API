@@ -35,11 +35,9 @@ import os
 import wget
 import secrets
 import hashlib
+import json
 from app.auth import *
 from database.admin import verify_admin
-
-
-
 
 DEBUG = False
 
@@ -190,9 +188,11 @@ async def ollama_stream(request: ChatbotRequestOllama,api_key: APIKey = Depends(
     """
     async def stream_parts():
         async for part in await ollama_async_client.generate(model=request.model, prompt=request.prompt, stream=True):
-            yield part['response']
+            #yield part['response']
+            format_response = json.dumps(part['response'])
+            yield f"{{'response': {format_response}}}\n"
 
-    return StreamingResponse(stream_parts(), media_type='text/event-stream')
+    return StreamingResponse(stream_parts(), media_type='application/x-ndjson')
 
 # Chat with Ollama API using the Ollama python client without stream
 @app.post("/ollama_chat", status_code=200)
@@ -270,7 +270,7 @@ def ollama_rag(request: ChatbotRequestOllama,api_key: APIKey = Depends(get_api_k
 
 #import a model from Huggingface
 @app.post("/ollama_import_HF", status_code=200)
-def ollama_import_HF(request:ChatbotRequestOllama,api_key: APIKey = Depends(get_api_key)):
+def ollama_import_HF(request:ChatbotRequestOllama, api_key: APIKey = Depends(get_api_key)):
     """
     Imports a model from a given URL and creates a model using Ollama.
 
@@ -283,11 +283,13 @@ def ollama_import_HF(request:ChatbotRequestOllama,api_key: APIKey = Depends(get_
     Raises:
         HTTPException: If there is an error downloading the model.
     """
-    download=wget.download(request.url_hf, out='./models/')
+    print(request)
+    url = request.url_hf
+    download=wget.download(url, out='./models/')
     if not download:
         raise HTTPException(status_code=400, detail="Error downloading the model")
     
-    name_model=request.url_hf.split("/")[-1]
+    name_model=url.split("/")[-1]
     
     #create a modelfile from the downloaded model using ollama
     modelfile=f'''
